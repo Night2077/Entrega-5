@@ -1,27 +1,49 @@
 from pymodbus.client.sync import ModbusTcpClient
-
-DI_ADDRESS = 0
-IR_ADDRESS = 0
+from pymodbus.pdu import ModbusExceptions
 
 SERVERS = [
     ("localhost", 5020),
-    ("localhost", 5021)
 ]
 
-print(f"Endereço DI: {DI_ADDRESS}")
-print(f"Endereço IR: {IR_ADDRESS}")
+# Invalida 02
+INVALID_ADRESS = 10
+INVALID_CONT1 = 1
 
-# leitura de server
+# Invalida 03
+VALID_ADRESS = 0
+INVALID_CONT2 = 300
+
+# Valida 
+VALID_CONT = 2
+VALID_VALUES = [1,0]
+
 for ip, port in SERVERS:
     print(f"\nConectando ao servidor {ip}:{port}")
-
     cliente = ModbusTcpClient(ip, port)
     cliente.connect()
 
-    di = cliente.read_discrete_inputs(DI_ADDRESS, 1).getBit(0) 
-    ir = cliente.read_input_registers(IR_ADDRESS, 1).getRegister(0)
+    # Execeção 02 
+    print("\nTeste exceção 0x02 (endereço inválido)")
+    print(f"Endereço={INVALID_ADRESS}, Quantidade={INVALID_CONT1}")
+    requisicao = cliente.write_coils(INVALID_ADRESS, [0]*INVALID_CONT1)
+    if requisicao.isError():
+        print("Exceção:", ModbusExceptions.decode(requisicao.exception_code))
 
-    print(f"DI = {di}")
-    print(f"IR = {ir}")
+    # Execeção 03
+    print("\nTeste exceção 0x03 (quantidade inválida)")
+    print(f"Endereço={VALID_ADRESS}, Quantidade={INVALID_CONT2}")
+    requisicao = cliente.write_coils(VALID_ADRESS, [0]*INVALID_CONT2)
+    if requisicao.isError():
+        print("Exceção:", ModbusExceptions.decode(requisicao.exception_code))
+
+    # Escrita Valida
+    print("\nEscrita válida")
+    print(f"Endereço={VALID_ADRESS}, Valores={VALID_VALUES}")
+    cliente.write_coils(VALID_ADRESS, VALID_VALUES)
+
+    # Leitura 
+    print("\nLeitura")
+    resp = cliente.read_coils(VALID_ADRESS, VALID_CONT)
+    print("Valores lidos:", resp.bits[:VALID_CONT])
 
     cliente.close()
