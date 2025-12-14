@@ -28,7 +28,7 @@ for ip, port in SERVERS:
 
     cliente.close()
 
-
+#teste de commit
 
     '''
     # Execeção 02 
