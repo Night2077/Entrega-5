@@ -1,27 +1,36 @@
 from pymodbus.client.sync import ModbusTcpClient
 from pymodbus.pdu import ModbusExceptions
+from time import sleep
+
 
 SERVERS = [
     ("localhost", 5020),
 ]
 
-# Invalida 02
-INVALID_ADRESS = 10
-INVALID_CONT1 = 1
+IR_ADDRESS = 0
+CONT = 1
 
-# Invalida 03
-VALID_ADRESS = 0
-INVALID_CONT2 = 300
-
-# Valida 
-VALID_CONT = 2
-VALID_VALUES = [1,0]
 
 for ip, port in SERVERS:
     print(f"\nConectando ao servidor {ip}:{port}")
     cliente = ModbusTcpClient(ip, port)
     cliente.connect()
 
+    for unit in [0x00,0x01]:
+        resp = cliente.read_input_registers(IR_ADDRESS,CONT,unit=unit)
+        print(f"Escravo {unit},IR[0] = {resp.registers[0]}")
+    
+    sleep(2)
+
+    for unit in [0x00,0x01]:
+        resp = cliente.read_input_registers(IR_ADDRESS,CONT,unit=unit)
+        print(f"Escravo {unit},IR[0] = {resp.registers[0]}")
+
+    cliente.close()
+
+
+
+    '''
     # Execeção 02 
     print("\nTeste exceção 0x02 (endereço inválido)")
     print(f"Endereço={INVALID_ADRESS}, Quantidade={INVALID_CONT1}")
@@ -47,3 +56,4 @@ for ip, port in SERVERS:
     print("Valores lidos:", resp.bits[:VALID_CONT])
 
     cliente.close()
+    '''
