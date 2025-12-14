@@ -2,54 +2,60 @@ from pymodbus.server.sync import StartTcpServer
 from pymodbus.datastore import ModbusServerContext, ModbusSlaveContext, ModbusSequentialDataBlock
 from threading import Thread
 from time import sleep
+import asyncio
 
+# Entrada Discreta
+DI1 = 1
+DI2 = 0
 
-TEMPO = 2
-TAXA_MUDANÇA = 5
+#
+IR1 = 20
+IR2 = 80
 
-IR1 = 10
-IR2 = 50
+TEMPO = 1
+TAXA_MUDANCA = 2
+CONTINUA = True
 
 PORT = 5020
 
-CONTINUA = True
+escravos = ModbusSlaveContext(
+    di = ModbusSequentialDataBlock(0,[DI1,IR1]),
+    ir = ModbusSequentialDataBlock(0,[DI2,IR2])
+)
 
-escravos = {
-    0x00: ModbusSlaveContext(
-        ir = ModbusSequentialDataBlock(0,[IR1]),
-        zero_mode = True
-    ),
-    0x01: ModbusSlaveContext(
-        ir = ModbusSequentialDataBlock(0,[IR2]),
-        zero_mode = True
-    )
-}
+context = ModbusServerContext(slaves=escravos,single=True)
 
-context = ModbusServerContext(slaves=escravos,single=False)
-
-def run_processo(context):
-    global CONTINUA
+async def run_processo():
+    global IR1,IR2
     while CONTINUA:
-        for unit_id in [0x00,0x01]:
-            atual = context[unit_id].getValues(4,0)[0]
-            novo = atual + TAXA_MUDANÇA
-            context[unit_id].setValues(4,0,[novo])
-            print(f"Escravo{unit_id}, IR[0]={novo}")
-        sleep(TEMPO)
 
-t = Thread(target=run_processo,args=(context,))
-t.start()
+        val = context[0].getValues(2,0,count=2)
 
-try:
-    print(f"Porta: {PORT}")
-    StartTcpServer(context, address=("localhost", PORT))
-finally:
-    CONTINUA = False
-    t.join()
+        print(f"IR1:{val[0]},IR2:{val[1]}")
+        
+        if val[0] == 1:
+            IR1 += TAXA_MUDANCA
+        else:
+            IR1 -= TAXA_MUDANCA
+        
+        if val[1] == 1:
+            IR2 += TAXA_MUDANCA
+        else:
+            IR2 -= TAXA_MUDANCA
+
+    IR1 = max(0,min(100,IR1))
+    IR2 = max(0,min(100,IR2))
+
+    context[0].setValues(4,0,[int(IR1),int(IR2)])
+
+    await asyncio.sleep(TEMPO)
+
+# main
+async def main():
+    await asyncio.gather(
+        run_processo(),
+        StartTcpServer(context,address=("localhost",5020))
+    )
 
 
-# Start server
-#StartTcpServer(context,address=("localhost",PORT))
-
-
-
+asyncio.run(main())
